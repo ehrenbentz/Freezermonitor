@@ -1,0 +1,113 @@
+################ Freezermonitor device installation and setup ################
+
+##################################
+# Before you start
+##################################
+
+# Install all hardware following setup tutorials on www.adafruit.com
+    # Raspberry pi with wireless connectivity (Raspberry Pi Zero W is the cheapest otion, and works perfectly) 
+        # NOTE: If you only have access to a 5GHz wifi network, you must use a Raspberry Pi 3 or newer with 5GHz or dual band wifi capabilites. Pi Zero models do not.
+    # Adafruit MAX31865 breakout board with either a PT100 or PT1000 resistor (this much match the Platinum RTD probe used.
+    # Platinum RTD sensor designed for temperatures suitable for your application (either designed for a PT100 or PT1000 resistor - this must match the MAX31865 resistor).
+    # Raspberry Pi enclosure or case. You need some method of mounting the Pi board, the MAX31865 and securing the RTD probe so that the sensitive wires are not broken later.
+    # NOTE: It is recommended that you solder all connections to create permanent and reliable conductivity.
+
+# Create and configure an initialstate account
+# Using a browser, go to https://www.initialstate.com/
+# Create an account and set up a streaming bucket to receive data from teh freezermonitor
+# You can cutomize the graphical dashboard to display a number of useful graphics
+# NOTE: If you upgrade to a paid initialstate account, you will be able to configure notification emails for temperature thresholds exceeded, and also if the device stops sending data.
+# Currently, the device requires power and an active network to send data. If the power goes out, or if it cannot access the wifi network, it will be unable to send notifications.
+
+# Configure gmail to send notifications:
+# Using a browser, create or log into a gmail account that will act as the sender for notification emails
+# Navigate to Settings -> Security and configure an "App password" (The specifics for how to do this change often, follow the prompts or search online for help)
+# IMPORTANT: You only get to view the app password once. Record it accurately, so that you can add it to the config file during setup steps below.
+
+##################################
+# Install raspberry pi OS
+##################################
+
+# Using a Windows, Mac, or Linux computer, go to https://www.raspberrypi.com/software/ and download and install 'Raspberry Pi Imager'
+# Insert a microSD card into your computer -> and run Raspberry pi Imager
+# Click "Operating System" -> Raspberry pi OS (other) -> Raspberry Pi OS Lite (32 bit)
+# Click Storage -> Ensure you select the microSD card! If you select the incorrect drive, you may inadvertently destroy system files. Double check that you have selected the correct drive.
+# Click 'Next' -> Edit settings
+# In the 'GENERAL' tab, Select boxes and enter information for:
+    # Set hostname-> enter "Freezermonitor" on the line (or some other uniqely identifiable hostname)
+    # Set username and password -> enter "FM" (or some other uniwely identifyable username - this will be the user that runs the Freezermonitor software on the pi)
+    # Configure wireless LAN -> enter a wifi network id and credentials to login
+        # NOTE: If running this device on a university network, you may have to register the device MAC ID before you are able to access the internet.
+    # Set locale settings -> select appropriate locale
+    # Eject media when finished
+# In the SERVICES tab
+    # Check Enable SSH and Use password authentication
+# Click "save"
+# Click "Yes"
+# click "Yes" to erase all data and install the OS
+
+# Insert the microSD card into the raspberry pi
+# Boot the raspberry pi, connect internet and update: 
+sudo apt update -y
+sudo apt upgrade -y
+
+##################################
+# Install freezermonitor software
+##################################
+
+# copy SETUP_freezermonitor to home directory (~/ or /home/USERNAME)
+
+# Run the following in order:
+mv ~/SETUP_freezermonitor/freezermonitor.py config.ini ~/
+sudo apt-get install python3-pip -y
+
+# NOTE: Raspberry pi OS versions based on Debian 13 "Bookworm" do not allow installing packages natively with pip3 by default.
+# If you encounter "error: externally-managed-environment", run the following line before installing with pip3 
+#        sudo rm -rf /usr/lib/python3.11/EXTERNALLY-MANAGED #<- replace python3.11 with current version if a later version of python3 is installed
+
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv
+
+# This solution is currently safe when installing Freezermonitor on Bookworm
+
+# Continue installation of python packages:
+sudo pip3 install --upgrade setuptools
+sudo pip3 install --upgrade adafruit-python-shell
+sudo pip3 install adafruit-circuitpython-max31865
+sudo pip3 install netifaces
+sudo pip3 install ISStreamer
+sudo python ~/SETUP_freezermonitor/raspi-blinka.py
+    # When promted with 'Would you like a login shell to be acessible over serial?' select 'No'-> Enter (THis will take a while to run on slower  devices like a raspberry pi Zero W)
+# After reboot run the following to test installation:
+# Each process should run without errors
+sudo python ~/SETUP_freezermonitor/blinkatest.py
+sudo python ~/SETUP_freezermonitor/print_ip.py
+sudo python ~/SETUP_freezermonitor/test_sensor.py
+
+# Edit the config.ini file to set all of the runtime options:
+# There are many parameters to set here. The "CUSTOM" messages may be left blank, but ALL others must have a value.
+# For testing purposes, enter rational values for alarm thresholds. The default values are configured for a -80 degree Celsius freezer, this will immediately send alarm emails at room temperture.
+
+sudo nano ~/config.ini
+    # edit paramters    
+    # press ctl+o to save after edits
+
+# Edit the .service file with the correct username and run directory 
+sudo nano ~/SETUP_freezermonitor/freezermonitor.service
+    # /home/USERNAME and /home/USERNAME/freezermonitor.py # <- change USERNAME to match the username you configured while installing the OS (The default user is "pi")
+    # press ctl+o to save after edits
+
+# Finally run:
+sudo cp ~/SETUP_freezermonitor/freezermonitor.service /etc/systemd/system/
+sudo systemctl enable freezermonitor.service
+sudo reboot
+
+# Attach the device to the outside of your freezer. 
+# Feed the RTD probe inside and place in an appropraite location.
+# NOTE: Platinum RTD sensors are extremely sensitive. It may be useful to place the sensor in a jar of sand or other material to slow its reposnse time slightly. Without this, it is very easy to trigger an alarm by opening the door.
+# Plug in the device
+# Wait for temperatures to equilibrate
+# Use the IP address to ssh into the pi and reconfigure temperature thresholds in the config.ini file to meet your requirements
+# Finally run:
+sudo systemctl restart freezermonitor.service
+
+# You're all done!
