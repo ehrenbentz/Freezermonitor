@@ -41,8 +41,6 @@ sudo apt-get install python3-pip -y
  If you encounter "error: externally-managed-environment", run the following line before installing with pip3
         sudo rm -rf /usr/lib/python3.11/EXTERNALLY-MANAGED #<- replace python3.11 with current version if a later version of python3 is installed
 
-WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv
-
 This solution is currently safe when installing Freezermonitor on Bookworm, but future updates will set this up in a virtual environment instead.
 
 Continue installation of python packages:
